@@ -1,0 +1,34 @@
+name: Feature request
+description: Propose an improvement that preserves the Single-Luna design
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem should this solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+
+  - type: textarea
+    id: invariant
+    attributes:
+      label: One-child invariant
+      description: Explain how this preserves one parent thinker + one reusable execution child.
+    validations:
+      required: true
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Runtime compatibility impact
+      description: Does this require a new Codex tool, config key, or model behavior?

@@ -1,0 +1,20 @@
+# Optional strict Single-Luna configuration.
+#
+# Do not replace your whole ~/.codex/config.toml with this file.
+# Merge only the relevant keys.
+#
+# The default installer does NOT modify config.toml.
+# Use StrictSingleChild / --strict-single-child only if you want the global
+# one-spawned-child-per-session guard.
+
+[features]
+multi_agent = true
+
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 1
+default_subagent_model = "gpt-5.6-luna"
+default_subagent_reasoning_effort = "max"
+
+# Some newer Codex builds may expose a V2-specific multi-agent feature flag.
+# Follow the configuration surface documented by your installed build if it differs.

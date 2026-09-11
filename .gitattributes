@@ -1,0 +1,14 @@
+# Keep repository text deterministic across Windows/macOS/Linux.
+* text=auto
+
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.toml  text eol=lf
+*.json  text eol=lf
+*.py    text eol=lf
+*.sh    text eol=lf
+*.txt   text eol=lf
+
+# Native Windows PowerShell scripts.
+*.ps1   text eol=crlf

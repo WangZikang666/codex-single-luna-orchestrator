@@ -1,0 +1,7 @@
+interface:
+  display_name: "Single Luna Orchestrator"
+  short_description: "One reusable Luna executor with parent-owned reasoning"
+  default_prompt: "Use $single-luna-orchestrator for this task: keep reasoning in the parent and execute with one reusable Luna child."
+
+policy:
+  allow_implicit_invocation: false
