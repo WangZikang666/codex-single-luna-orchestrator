@@ -2,6 +2,31 @@
 
 All notable public changes to this project are documented here.
 
+## [1.1.0] - 2026-09-14
+
+Retained-target recovery for the public Native Minimal / Session-Bound design.
+
+### Added
+
+- `ACTIVE_VISIBLE`, `ACTIVE_HIDDEN`, and `ACTIVE_USABLE` lifecycle states.
+- Canonical `RECOVERY_PROBE` through `followup_task` when `list_agents` does not show the
+  designated child.
+- Exact `STATUS: SINGLE_LUNA_REATTACHED` recovery success outcome.
+- Fresh-lifecycle guard before the only initial spawn.
+- `STATUS: SINGLE_LUNA_SESSION_STALE` when a previously existing canonical target is
+  definitively unreachable.
+- Explicit fail-closed handling for ambiguous recovery failures; no replacement child is
+  created.
+- Smoke Test 06 for retained-target recovery and a new-session requirement after stale state.
+
+### Changed
+
+- `list_agents` visibility is documented as observational, not authoritative.
+- Re-invocation and long-idle behavior now probes and reuses the same canonical target.
+- Installer backups, output, and the GitHub release helper target v1.1.0.
+- Session-bound exit reports `SESSION_COMPLETE` honestly when `close_agent` is unavailable;
+  a new session is required for clean `DISABLED`.
+
 ## [1.0.0] - 2026-09-11
 
 Initial public release.

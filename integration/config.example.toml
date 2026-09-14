@@ -1,11 +1,12 @@
-# Optional strict Single-Luna configuration.
+# Optional strict Single-Luna v1.1.0 configuration.
 #
 # Do not replace your whole ~/.codex/config.toml with this file.
 # Merge only the relevant keys.
 #
 # The default installer does NOT modify config.toml.
 # Use StrictSingleChild / --strict-single-child only if you want the global
-# one-spawned-child-per-session guard.
+# one-spawned-child-per-session guard. These are the only five native-agent keys
+# managed by this public package.
 
 [features]
 multi_agent = true

@@ -1,5 +1,7 @@
 # Smoke Test 05 — Session-Bound Exit
 
+Release behavior: v1.1.0.
+
 Run at the end of an ACTIVE Single-Luna task:
 
 ```text
@@ -15,7 +17,7 @@ Apply the session-bound exit rules:
    - do not claim the child was closed;
    - do not claim the same session is cleanly DISABLED;
    - do not spawn a replacement;
-   - report SESSION COMPLETE;
+   - report `SESSION_COMPLETE` (SESSION COMPLETE);
 6. stop assigning new implementation work;
 7. report that a new Codex session is the clean DISABLED state.
 ```

@@ -20,7 +20,7 @@ $EndMarker = "<!-- END SINGLE-LUNA-ORCHESTRATOR -->"
 function Backup-File {
     param([string]$Path)
     if (Test-Path $Path) {
-        $Backup = "$Path.before-single-luna-v1.0.0-$Stamp.bak"
+        $Backup = "$Path.before-single-luna-v1.1.0-$Stamp.bak"
         Copy-Item -LiteralPath $Path -Destination $Backup -Force
         Write-Host "Backup: $Backup" -ForegroundColor DarkGray
     }
@@ -136,7 +136,7 @@ function Set-TomlSectionKeys {
     return (($lines -join $newline).TrimEnd() + $newline)
 }
 
-Write-Host "=== Single-Luna Orchestrator v1.0.0 installer ===" -ForegroundColor Cyan
+Write-Host "=== Single-Luna Orchestrator v1.1.0 installer ===" -ForegroundColor Cyan
 Write-Host "Codex home: $CodexHome"
 Write-Host "Strict single-child config: $StrictSingleChild"
 Write-Host "hooks.json will not be read, written, or modified." -ForegroundColor Yellow
@@ -155,7 +155,7 @@ New-Item -ItemType Directory -Force -Path (Split-Path -Parent $SkillTarget) | Ou
 Backup-File $AgentsTarget
 
 if (Test-Path $SkillTarget) {
-    $SkillBackup = "$SkillTarget.before-single-luna-v1.0.0-$Stamp"
+    $SkillBackup = "$SkillTarget.before-single-luna-v1.1.0-$Stamp"
     Copy-Item -LiteralPath $SkillTarget -Destination $SkillBackup -Recurse -Force
     Remove-Item -LiteralPath $SkillTarget -Recurse -Force
     Write-Host "Backup: $SkillBackup" -ForegroundColor DarkGray

@@ -29,7 +29,13 @@ Never post API keys, access tokens, private repository source, or personal crede
 ## Known design boundaries
 
 - The skill is explicit-only.
-- The workflow is session-bound after ACTIVE begins.
+- The only child is `/root/single_luna_executor`, and the workflow is session-bound after
+  activation.
+- `list_agents` visibility is observational, not authoritative. A hidden retained target is
+  recovery-probed with `followup_task` before any spawn decision.
+- `STATUS: SINGLE_LUNA_REATTACHED` means the same target is reusable; a definitive not-found
+  after prior existence means `STATUS: SINGLE_LUNA_SESSION_STALE` and a new session.
+- Ambiguous recovery errors fail closed with no spawn or replacement.
 - `close_agent` may not exist in every Multi-Agent V2 runtime.
-- If the designated child disappears while ACTIVE, the policy fails closed instead of
-  automatically creating a replacement.
+- If it is unavailable, report `SESSION_COMPLETE` and use a new session for clean `DISABLED`
+  rather than fabricating a close or automatically creating a replacement.

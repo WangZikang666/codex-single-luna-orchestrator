@@ -2,51 +2,70 @@
 
 ## Validated design target
 
-Public v1.0.0 is derived from a runtime-tested Native Minimal / Session-Bound design on a
-Codex Desktop Multi-Agent V2 environment in September 2026.
+Public v1.1.0 targets a Codex Desktop Multi-Agent V2 runtime with native operations
+equivalent to:
 
-The workflow expects native operations equivalent to:
+- `list_agents`;
+- `spawn_agent`;
+- `followup_task`.
 
-- `list_agents`
-- `spawn_agent`
-- `followup_task`
+The only allowed child is `/root/single_luna_executor`, configured as GPT-5.6 Luna / Max,
+with the initial context fork set to `fork_turns = "none"`.
 
-The initial child should be:
+The parent model and reasoning effort remain user-controlled. They are not silently changed
+by this package.
 
-- task name: `single_luna_executor`
-- model: `gpt-5.6-luna`
-- reasoning effort: `max`
-- initial context fork: `fork_turns = "none"`
+## Retained-target compatibility
+
+Some runtimes may stop displaying an idle/retained child in `list_agents`. v1.1.0 treats that
+visibility loss as observational, not authoritative.
+
+Before any replacement or spawn decision:
+
+1. call `list_agents`;
+2. if the canonical child is hidden, send the same `/root/single_luna_executor` a
+   `RECOVERY_PROBE` via `followup_task`;
+3. on `STATUS: SINGLE_LUNA_REATTACHED`, reuse the same target even if it remains hidden;
+4. on definitive target/thread/path not found, check whether the target existed earlier;
+5. after prior existence, report `STATUS: SINGLE_LUNA_SESSION_STALE` and start a new session;
+6. on an ambiguous timeout, transport failure, or missing completion, fail closed with no
+   spawn and no replacement.
+
+Initial spawn is valid only for a demonstrably fresh lifecycle: explicit invocation,
+authorized implementation, no visible child, definitive recovery not-found, and no evidence
+of an earlier child in the current session. If freshness is uncertain, do not guess.
 
 ## Runtime variability
 
-Codex multi-agent tool and configuration surfaces may evolve.
-
-If spawn-time model/effort fields are not exposed, the strict configuration uses:
+If spawn-time model or reasoning-effort fields are not exposed, use the documented native
+configuration defaults:
 
 ```toml
 [agents]
+enabled = true
+max_concurrent_threads_per_session = 1
 default_subagent_model = "gpt-5.6-luna"
 default_subagent_reasoning_effort = "max"
 ```
 
-If a future build uses a different feature flag or config namespace, prefer the configuration
-documented by that build while retaining the skill's lifecycle invariants.
+If a future build uses a different feature flag or config namespace, follow that build's
+documented surface while preserving the public lifecycle invariants. Do not increase the
+concurrency limit to bypass retained-target behavior.
 
-## close_agent
+## Parent modes and reasoning boundary
 
-`close_agent` is not assumed to exist.
+Plan Mode keeps child count at zero until approval. Normal Mode skips formal Plan approval but
+still requires parent-owned clarification and decisions. Luna performs bounded execution only;
+an unresolved meaningful choice must return `STATUS: BLOCKED_REASONING` to the parent.
 
-If unavailable:
+## Session-bound exit
 
-- do not use `interrupt_agent` as a fake close;
-- report `SESSION COMPLETE`;
-- do not create a replacement child;
-- use a new Codex session for a clean DISABLED state.
+`close_agent` is not assumed to exist. If unavailable, do not use `interrupt_agent` as a fake
+close, do not create a replacement, and do not claim clean `DISABLED`. Report
+`SESSION_COMPLETE` and start a new Codex session for a clean `DISABLED` state.
 
-## Parent modes
+## Public boundary
 
-Plan Mode and Normal Mode are both supported.
-
-Avoid parent modes that automatically/proactively create additional children when that
-behavior cannot be reconciled with the strict one-child topology.
+The workflow is explicit-only, exactly-one-child, hookless, bridge-free, and free of external
+state files. The installers do not read, write, or modify `hooks.json`; default installation
+leaves `config.toml` unchanged.

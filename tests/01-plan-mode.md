@@ -1,5 +1,7 @@
 # Smoke Test 01 — Plan Mode
 
+Release behavior: v1.1.0.
+
 Use a disposable project and a NEW Codex session.
 
 Enable Plan Mode and invoke:
@@ -31,6 +33,10 @@ Approve the Plan.
 ## PASS after approval
 
 - Parent calls `list_agents`.
+- If the designated target is hidden, parent sends `RECOVERY_PROBE` to the same canonical
+  target before any spawn decision.
+- Only a definitive not-found result in a demonstrably fresh lifecycle permits the initial
+  spawn.
 - Exactly one initial `spawn_agent`.
 - Canonical child is `/root/single_luna_executor`.
 - Initial spawn uses `fork_turns = "none"`.

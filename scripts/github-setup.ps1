@@ -56,14 +56,14 @@ foreach ($label in $labels) {
 
 if ($CreateRelease) {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-    $notes = Join-Path $repoRoot "docs\RELEASE_NOTES_v1.0.0.md"
+    $notes = Join-Path $repoRoot "docs\RELEASE_NOTES_v1.1.0.md"
 
-    gh release create v1.0.0 `
+    gh release create v1.1.0 `
       --repo $Repo `
-      --title "Single-Luna Orchestrator v1.0.0" `
+      --title "Single-Luna Orchestrator v1.1.0" `
       --notes-file $notes
 
-    Write-Host "[OK] Release v1.0.0 created." -ForegroundColor Green
+    Write-Host "[OK] Release v1.1.0 created." -ForegroundColor Green
 } else {
     Write-Host "Release not created. Re-run with -CreateRelease after validating Actions." -ForegroundColor Yellow
 }

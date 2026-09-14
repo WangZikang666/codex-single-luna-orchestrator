@@ -1,243 +1,245 @@
 ---
 name: single-luna-orchestrator
-description: Explicit-only native Codex workflow for long implementation tasks. Keep planning, difficult reasoning, decisions, corrections, and final acceptance in the current parent; create exactly one reusable GPT-5.6 Luna Max execution child and reuse it with followup_task.
+description: Explicit-only native Codex workflow for Plan and normal mode. Keep planning, difficult reasoning, decisions, corrections, and final acceptance in the current parent; execute with exactly one reusable GPT-5.6 Luna Max child and recover that same canonical target after retained visibility loss.
 ---
 
-# Single-Luna Orchestrator v1.0.0
+# Single-Luna Orchestrator v1.1.0
 
 Invoke manually:
 
 `$single-luna-orchestrator`
 
-## Goal
+This public specification is authoritative for the v1.1.0 workflow. It is native,
+hookless, bridge-free, explicit-only, and session-bound after activation. It does not use
+external state files or hidden activation.
 
-Keep meaningful thinking in the current user-selected parent.
+## Goal and topology
 
-Delegate concrete execution to exactly one persistent native GPT-5.6 Luna / Max child.
+Keep requirements, planning, difficult reasoning, design decisions, corrections, and final
+acceptance in the current user-selected parent. Delegate bounded execution to exactly one
+native GPT-5.6 Luna / Max child:
 
-Never create a second child for the activated task.
+```text
+user-selected parent
+        |
+        | compact, decision-complete execution packet
+        v
+/root/single_luna_executor
+GPT-5.6 Luna / Max
+        |
+        | inspect / edit / command / test / evidence
+        v
+same parent performs final acceptance
+```
 
-This skill is intentionally:
+Never create a second child. The child is initially created once and subsequently reused by
+`followup_task`.
 
-- native;
-- explicit-only;
-- hookless;
-- free of MCP/app-server bridges;
-- free of external state files;
-- session-bound after ACTIVE begins.
+## Explicit activation and parent selection
 
-## Parent selection
+The workflow activates only when the user explicitly invokes
+`$single-luna-orchestrator`. Do not silently activate it.
 
-Do not change the user's parent model or parent reasoning effort.
-
-Use the parent the user selected in Codex.
-
-Avoid a parent mode that proactively delegates on its own when that would conflict with the
-strict one-child topology.
+Do not change the user's selected parent model or reasoning effort. The parent remains the
+thinker and decision owner; this policy does not select a parent for the user.
 
 ## Conceptual states
 
 ```text
 DISABLED
-  -> explicit invocation
+   |
+   | explicit invocation
+   v
 ARMED
-  -> Plan approved / normal execution-ready
-ACTIVE
-  -> same native child reused with followup_task
-SESSION COMPLETE
-  -> leave/end current Codex session
-new session = DISABLED
+   |
+   | Plan approved, or Normal Mode is execution-ready
+   v
+ACTIVE_VISIBLE
+   |  list_agents currently shows the designated target
+   v
+ACTIVE_HIDDEN
+   |  list_agents no longer shows it; visibility is observational only
+   v
+ACTIVE_USABLE
+   |  recovery followup reaches the same canonical target
+   v
+SESSION_COMPLETE
+   |
+   | leave/end this Codex session
+   v
+new session = clean DISABLED
 ```
 
-No external persisted state is maintained.
+The designated canonical target is always:
 
-Use the native child tree as runtime evidence:
+`/root/single_luna_executor`
 
-- `/root/single_luna_executor` exists => ACTIVE.
-
-Before the first child exists, ARMED is conversation-context state. If a very long planning
-conversation is compacted and activation is genuinely lost, ask the user to re-mention
-`$single-luna-orchestrator` instead of silently guessing.
+`list_agents` visibility is observational, not authoritative. A target can be retained and
+addressable even when it is absent from the current `list_agents` result. No external
+persisted state is maintained.
 
 ## Plan Mode
 
 When invoked while Plan Mode is active:
 
-- remain ARMED;
-- Luna count must stay 0 while planning;
-- do not call `spawn_agent`;
-- do not create explorer/planner/tester/verifier/auditor/reviewer children;
-- the current parent alone asks clarification questions;
-- the current parent alone reasons about architecture, design, risks, debugging hypotheses,
-  alternatives, and implementation strategy;
-- the current parent writes and refines the Plan.
+- remain `ARMED` while planning;
+- keep Luna count at **0** before the user approves the Plan;
+- do not call `spawn_agent` during planning;
+- do not create explorer, planner, tester, verifier, auditor, reviewer, fixer, or nested
+  children;
+- let the current parent ask clarifying questions, reason about architecture and risks, and
+  write/refine the Plan.
 
-When the user approves the Plan and implementation begins:
-
-1. call `list_agents`;
-2. if `/root/single_luna_executor` already exists, reuse it;
-3. if any other live child exists, STOP and report the conflict;
-4. if no child exists, call native `spawn_agent` exactly once;
-5. use task name `single_luna_executor`;
-6. use `fork_turns = "none"`;
-7. send only a compact, execution-ready packet;
-8. keep the child reusable after its turn completes.
-
-The user should not need to invoke the skill again while the same activated task continues.
+After Plan approval, use the activation and retained-target recovery procedure below. If a
+long Plan was compacted before any child was created and activation is genuinely uncertain,
+ask the user to re-mention the skill rather than guessing that a fresh lifecycle is safe.
 
 ## Normal Mode
 
-Outside Plan Mode:
+When Plan Mode is off, explicit invocation still arms the workflow. The parent first confirms
+requirements and resolves ambiguity, then uses the same activation and recovery procedure
+when the task is execution-ready. Normal Mode skips only the formal Plan approval step; it
+does not move meaningful reasoning to Luna.
 
-- treat explicit invocation as ARMED;
-- the parent confirms requirements;
-- the parent resolves ambiguity;
-- the parent makes meaningful implementation decisions;
-- when the task is execution-ready, call `list_agents`;
-- create `/root/single_luna_executor` exactly once if absent;
-- otherwise reuse the existing designated child;
-- if any other live child exists, stop and report the conflict.
+Re-invoking the skill in the same Codex session is not permission to create a replacement
+child. Apply the same recovery procedure and reuse the same canonical target.
 
-Normal Mode skips only the formal Plan/approval step.
+## Activation and retained-target recovery
+
+Before **every implementation-capable delegation**, follow all steps in order.
+
+### Step 1: inspect visible children
+
+Call `list_agents`.
+
+If `/root/single_luna_executor` is visible, treat the lifecycle as `ACTIVE_VISIBLE`:
+
+- never call `spawn_agent`;
+- send the bounded work to that same target with `followup_task`.
+
+If any other live child is present, stop and report the conflict. Do not spawn or replace a
+child.
+
+### Step 2: probe a hidden designated target
+
+If the designated target is not visible, treat the lifecycle as `ACTIVE_HIDDEN` until the
+canonical target is resolved. Do **not** immediately call `spawn_agent`.
+
+First send a bounded no-op recovery probe to the same target with `followup_task`:
+
+```text
+RECOVERY_PROBE
+
+This is a Single-Luna native lifecycle recovery check.
+
+Do not modify files.
+Do not run unrelated work.
+Do not make design decisions.
+Do not spawn or delegate to another agent.
+
+If this canonical target is still usable, reply exactly:
+
+STATUS: SINGLE_LUNA_REATTACHED
+```
+
+The probe must not contain the full task or ask the child to make a design decision.
+
+### Step 3: interpret the probe without replacing the target
+
+If the same target responds with `STATUS: SINGLE_LUNA_REATTACHED`, treat it as
+`ACTIVE_USABLE`. Do not spawn, rename, or create a replacement. Send the real bounded work
+with another `followup_task` to the same canonical target. The target does not need to become
+visible in `list_agents` again.
+
+If recovery returns a **definitive target-resolution failure**, such as `target not found`,
+`thread not found`, `canonical path not found`, or an equivalent explicit no-such-target
+result, distinguish freshness before any spawn:
+
+- If the current session or conversation proves that Single-Luna was spawned earlier, do not
+  replace it. Report:
+
+  ```text
+  STATUS: SINGLE_LUNA_SESSION_STALE
+  ```
+
+  Require a **new Codex session** for another Single-Luna lifecycle.
+- Initial spawn is allowed only for a demonstrably fresh lifecycle: the user explicitly
+  invoked the skill, implementation is authorized, no child is visible, the recovery probe
+  definitively found no canonical target, and there is no evidence that a child was spawned
+  earlier in this session.
+- If freshness is uncertain, fail closed and ask the user to start a new session or confirm
+  that this is a genuinely fresh lifecycle. Do not guess.
+
+If recovery fails ambiguously—for example, timeout, transport failure, missing completion
+notification, or another error that does not explicitly resolve the target—fail closed:
+
+- do not call `spawn_agent`;
+- do not create a replacement or alternate task name;
+- report the ambiguity and ask the user to retry later or start a new session.
 
 ## Initial spawn requirements
 
-Use:
+Only after the fresh-lifecycle guard above succeeds may the parent create the one child:
 
 ```text
 task_name = "single_luna_executor"
 fork_turns = "none"
-model = "gpt-5.6-luna"       # when exposed by the current spawn schema
-reasoning_effort = "max"     # when exposed by the current spawn schema
+model = "gpt-5.6-luna"       # when exposed by the runtime schema
+reasoning_effort = "max"     # when exposed by the runtime schema
 ```
 
-If spawn-time model/effort overrides are unavailable, rely on configured defaults:
+If the runtime does not expose model or effort overrides, use the documented native
+`[agents]` defaults instead. Do not proceed if runtime evidence proves that the child is not
+GPT-5.6 Luna / Max. Do not intentionally close the child after ordinary completion.
+
+## Exactly-one-child invariant
+
+The only allowed execution child is `/root/single_luna_executor`. The lifecycle is:
 
 ```text
-default_subagent_model = "gpt-5.6-luna"
-default_subagent_reasoning_effort = "max"
+initial spawn once
+   -> followup_task to the same target
+   -> hidden target: recovery followup_task to the same target
+   -> recovery success: continue the same target
+   -> definitive not-found after prior existence: SINGLE_LUNA_SESSION_STALE
 ```
 
-If runtime evidence proves that the child is not Luna / Max, stop and report verification
-failure. Do not create a replacement.
+Never create a second child or names such as:
 
-## Spawn-once invariant
+- `/root/single_luna_executor_2`;
+- `/root/single_luna_executor_recovery`;
+- `/root/single_luna_executor_new`;
+- explorer, planner, tester, verifier, auditor, reviewer, fixer, or nested children.
 
-Once `/root/single_luna_executor` exists, never call `spawn_agent` again for this activated
-task.
+Do not increase the concurrency limit to work around retained-target visibility. Before each
+later implementation delegation, repeat `list_agents`, then either reuse the visible target
+or recovery-probe the hidden target. Never infer permanent loss from visibility alone.
 
-Before every implementation-capable delegation:
+## Division of labor and reasoning boundary
 
-1. call `list_agents`;
-2. verify the designated child exists;
-3. verify no additional child exists;
-4. use `followup_task` with that SAME child;
-5. wait for that SAME child;
-6. leave it reusable afterward.
+The current parent owns user intent, clarification, planning, decomposition, architecture,
+API/schema/design choices, difficult debugging, interpretation of failed tests, tradeoffs,
+scope decisions, corrections, and final acceptance.
 
-Never create:
+Luna may inspect concrete files needed for a bounded instruction, edit files, run commands or
+tests, lint/format, perform deterministic implementation already selected by the parent, and
+return factual evidence. Luna must not reinterpret requirements, choose architecture or
+meaningful alternatives, broaden scope, or spawn another child.
 
-- a second Luna;
-- explorer;
-- planner;
-- tester;
-- verifier;
-- auditor;
-- reviewer;
-- fixer;
-- evidence reviewer;
-- nested child.
-
-A completed/idle native child is still the designated reusable executor.
-
-## Fail-closed lifecycle rule
-
-If the task is known to be ACTIVE but `list_agents` no longer contains
-`/root/single_luna_executor`:
-
-- do not spawn a replacement;
-- do not create another child under a different name;
-- do not fall back to another subagent;
-- report that the native child lifecycle was lost;
-- ask the user to start a fresh Codex session or explicitly reset the workflow.
-
-Lifecycle:
-
-```text
-spawn once
--> keep reusable
--> followup_task repeatedly
--> never replace automatically
-```
-
-## Division of labor
-
-The current parent owns all meaningful thinking.
-
-Parent responsibilities include:
-
-- requirement interpretation;
-- clarification;
-- planning and decomposition;
-- architecture;
-- API/schema/data-model/design choices;
-- implementation strategy;
-- difficult debugging hypotheses and root-cause reasoning;
-- interpretation of failed tests when judgment is required;
-- meaningful alternatives and tradeoffs;
-- scope/risk decisions;
-- corrections;
-- final acceptance.
-
-Luna may only:
-
-- inspect concrete repository state needed for a bounded instruction;
-- edit files;
-- run commands;
-- run tests;
-- lint/format;
-- perform deterministic/mechanical implementation already chosen by the parent;
-- collect concrete evidence;
-- report execution results.
-
-Luna must not:
-
-- reinterpret requirements;
-- plan the overall task;
-- choose architecture;
-- choose APIs/schemas/designs;
-- choose meaningful alternatives;
-- broaden scope;
-- independently redesign;
-- perform broad speculative debugging;
-- strategically decide what a failed test means;
-- decide future work;
-- spawn/delegate to another agent.
-
-## Reasoning boundary
-
-If the next action requires judgment, interpretation, design, architecture, difficult
-reasoning, scope expansion, or a meaningful choice, Luna must STOP and return:
+When a meaningful unresolved decision is encountered, Luna must stop and return exactly this
+shape:
 
 ```text
 STATUS: BLOCKED_REASONING
-EVIDENCE: <concrete facts only>
-QUESTION_FOR_ROOT: <exact decision required>
+EVIDENCE: <facts only>
+QUESTION_FOR_ROOT: <exact decision needed>
 SAFE_EXECUTION_COMPLETED: <safe work already completed>
 ```
 
-The parent makes the decision, then sends a decision-complete instruction to the SAME child
-using `followup_task`.
+The parent decides, then sends a resolved instruction to the same canonical target using
+`followup_task`.
 
-## Context-economy rule
-
-Do not fork the full planning conversation into the child.
-
-The initial spawn must use:
-
-`fork_turns = "none"`
-
-Use compact execution packets:
+Use compact, decision-complete packets:
 
 ```text
 OBJECTIVE:
@@ -249,58 +251,54 @@ VERIFY:
 STOP_IF:
 ```
 
-Do not send unresolved alternatives.
-Do not ask Luna to decide the best architecture.
-Do not send the full parent transcript unless unavoidable.
+Do not send unresolved alternatives or the full Plan transcript. Do not ask Luna to choose
+the architecture.
 
 ## Parent final acceptance
 
-Do not create a reviewer child.
-
-After Luna reports completion, the same current parent:
-
-- inspects actual changed files/diff;
-- inspects real test/command evidence;
-- compares results with the approved Plan when applicable;
-- compares results with user requirements;
-- reasons about regressions, edge cases, and unresolved risks;
-- decides PASS or FAIL.
-
-If FAIL:
-
-- the parent determines the exact correction;
-- the SAME Luna executes it through `followup_task`;
-- the parent reviews again.
+Do not create a reviewer child. After Luna returns, the same parent inspects actual changes,
+diffs, and command evidence; compares them with the Plan and user requirements; reasons about
+regressions and edge cases; and decides `PASS` or `FAIL`. If a correction is needed, the
+parent decides the exact correction and sends it to the same target with `followup_task`.
 
 ## Session-bound completion and exit
 
-Do not assume `close_agent` exists.
+Do not assume that `close_agent` exists.
 
-When the user says the long task is complete or asks to exit:
+When the user says the activated task is complete:
 
-1. call `list_agents`;
-2. confirm whether `/root/single_luna_executor` still exists;
-3. if the runtime exposes `close_agent`, it may close the designated child;
-4. if `close_agent` is unavailable:
-   - do not fake a successful close;
-   - do not use `interrupt_agent` as a close substitute;
-   - do not spawn a replacement;
-   - do not claim the same session is cleanly DISABLED;
-5. stop assigning new implementation work;
-6. report `SESSION COMPLETE`;
-7. recommend a NEW Codex session for a clean DISABLED state or unrelated task.
+1. call `list_agents` and report whether `/root/single_luna_executor` is visible;
+2. if `close_agent` is exposed, it may be used to close the designated child;
+3. if it is unavailable, do not pretend the child was closed, do not use `interrupt_agent` as
+   a substitute, do not spawn a replacement, and do not claim the current session is cleanly
+   `DISABLED`;
+4. stop assigning new implementation work and report:
 
-The workflow is session-bound after ACTIVE begins.
+   ```text
+   SESSION_COMPLETE
+   ```
 
-## Verification rule
+   This is the session-complete state (also described as **SESSION COMPLETE**); a new Codex
+   session is required for a clean `DISABLED` state or an unrelated task.
 
-Core PASS requires:
+If the designated target is already absent at completion, still do not spawn anything.
 
-- Plan Mode, when used, had zero child before approval;
-- exactly one native execution child was created;
-- the child is Luna / Max;
-- the same child is reused through `followup_task`;
-- no other child was created;
-- unresolved reasoning returns to the parent;
-- the parent owns final acceptance;
-- completion does not falsely claim ACTIVE -> DISABLED when close is unavailable.
+## Hookless public boundary
+
+This skill does not use `hooks.json`, SessionStart/UserPromptSubmit/SubagentStart hooks, MCP
+bridges, app-server sidecars, or external state files. Installers manage only the documented
+skill and marked AGENTS block, and Strict mode merges only the documented native-agent keys.
+
+## Verification contract
+
+The parent may report:
+
+```text
+SINGLE-LUNA CORE VERIFICATION: PASS
+```
+
+only after confirming, as applicable, zero Plan-stage children, exactly one Luna / Max child,
+`fork_turns = "none"`, same-target `followup_task` reuse, hidden-target recovery before any
+spawn, no replacement child, parent-owned final acceptance, and honest session-bound exit.
+When any of those conditions is not met, report `SINGLE-LUNA CORE VERIFICATION: FAIL` and do
+not create a replacement child.
