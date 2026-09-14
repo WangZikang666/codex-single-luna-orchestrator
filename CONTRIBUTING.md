@@ -17,14 +17,19 @@ major version.
 4. Do not add explorer/planner/tester/reviewer/fixer child roles.
 5. Keep parent-owned reasoning and final acceptance.
 6. Preserve `fork_turns = "none"` for the initial executor spawn.
-7. Preserve same-child `followup_task` reuse.
-8. Run:
+7. Preserve same-child `followup_task` reuse, including hidden-target recovery.
+8. Treat `list_agents` visibility as observational; probe the canonical target before any
+   replacement or spawn decision.
+9. Preserve the fresh-lifecycle guard, `SINGLE_LUNA_REATTACHED` success, and
+   `SINGLE_LUNA_SESSION_STALE` outcome.
+10. Keep ambiguous recovery failures fail-closed with no replacement child.
+11. Run:
 
 ```bash
 python scripts/validate.py
 ```
 
-9. If your change affects runtime behavior, run the relevant smoke test under `tests/`.
+12. If your change affects runtime behavior, run the relevant smoke test under `tests/`.
 
 ## Pull request checklist
 

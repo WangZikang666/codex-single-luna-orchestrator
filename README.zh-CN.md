@@ -8,7 +8,7 @@
 
 > **语言：** [English](README.md) | 简体中文
 
-**Single-Luna Orchestrator v1.0.0** 是一个显式调用的 Codex orchestration skill。
+**Single-Luna Orchestrator v1.1.0** 是一个显式调用的 Codex orchestration skill。
 
 它的目标非常明确：
 
@@ -65,6 +65,9 @@ Luna **只创建一次**，之后一直通过 `followup_task` 复用同一个 ch
 - 不创建 explorer / planner / tester / verifier / auditor / reviewer / fixer / nested child
 - 所有有意义的推理由 Parent 负责
 - Luna 遇到需要判断的问题必须返回 `STATUS: BLOCKED_REASONING`
+- `list_agents` 只提供可见性观察，不是 designated child 是否存在的权威证明；隐藏时必须先 recovery probe 同一 canonical target
+- 成功恢复返回 `STATUS: SINGLE_LUNA_REATTACHED` 并复用同一 child
+- 既有 child 确定不可达时返回 `STATUS: SINGLE_LUNA_SESSION_STALE`；ambiguous recovery 失败时 fail closed，不 spawn、不创建 replacement
 - 最终 PASS / FAIL 由当前 Parent 自己判断
 - **Hookless**
 - **无 MCP bridge**
@@ -74,7 +77,7 @@ Luna **只创建一次**，之后一直通过 `followup_task` 复用同一个 ch
 
 ## 已验证行为
 
-| 能力 | v1.0.0 |
+| 能力 | v1.1.0 |
 | --- | --- |
 | 显式调用 | ✅ |
 | Plan 批准前 child = 0 | ✅ |
@@ -84,6 +87,9 @@ Luna **只创建一次**，之后一直通过 `followup_task` 复用同一个 ch
 | `fork_turns = "none"` | ✅ |
 | `BLOCKED_REASONING` 回交父代 | ✅ |
 | Parent 最终验收 | ✅ |
+| 隐藏 child 的 retained-target recovery | ✅ |
+| initial spawn 前 fresh-lifecycle guard | ✅ |
+| ambiguous recovery 不 spawn / replacement | ✅ |
 | 防止额外 child fan-out | ✅（规则约束） |
 | hooks / MCP bridge | 不使用 |
 | Session-Bound completion | ✅ |
@@ -236,15 +242,24 @@ ARMED
    |
    | 用户批准 Plan
    v
-ACTIVE
+   ACTIVE_VISIBLE
    |
-   | spawn /root/single_luna_executor 一次
+   | visible：followup_task 复用同一 child
+   | hidden：先对同一 canonical target 发送 recovery probe
+   v
+   ACTIVE_HIDDEN
+   |\
+   | \ 恢复成功 -> ACTIVE_USABLE -> followup_task 复用同一 child
+   | \
+   |  明确 not-found -> fresh-lifecycle guard -> 唯一一次 initial spawn
+   |   \
+   |    ambiguous 或 stale -> fail closed / 新 session
    |
    | followup_task -> 同一个 Luna
    | followup_task -> 同一个 Luna
    | followup_task -> 同一个 Luna
    v
-SESSION COMPLETE
+SESSION_COMPLETE（SESSION COMPLETE）
    |
    | 结束当前 Codex session
    v
@@ -273,6 +288,25 @@ Parent
 Luna
 = 执行
 ```
+
+## Retained-Target Recovery
+
+`list_agents` 只是可见性视图，不是 designated child 已被销毁的证明。每次能够改变
+文件或执行实现前都必须先调用它。如果 `/root/single_luna_executor` 未显示，先用
+`followup_task` 对同一个 canonical target 发送无副作用的 `RECOVERY_PROBE`，绝不能直接
+spawn。
+
+结果处理必须遵循以下矩阵：
+
+| recovery 结果 | 必须采取的动作 |
+| --- | --- |
+| `STATUS: SINGLE_LUNA_REATTACHED` | 进入 `ACTIVE_USABLE`，继续用 `followup_task` 复用同一 target，即使它仍隐藏。 |
+| 既有 child 存在过且明确 target/thread/path not found | 返回 `STATUS: SINGLE_LUNA_SESSION_STALE`，不 replacement，启动新 session。 |
+| 明确 not-found 且能证明是全新 lifecycle | 在显式调用且已获实现授权后，才允许唯一一次 initial spawn。 |
+| timeout、transport error、missing completion 或其他 ambiguous error | fail closed：不 spawn、不 replacement，稍后重试或启动新 session。 |
+
+fresh lifecycle 必须同时满足：用户显式调用、实现已获授权、无可见 child、recovery
+明确 not-found、当前 session 没有 child 曾被 spawn 的证据。无法证明时不要猜测。
 
 ## Reasoning Boundary
 
@@ -364,13 +398,12 @@ followup_task
 同一个 Luna
 ```
 
-如果 ACTIVE 状态下 designated child 消失：
+如果 ACTIVE 状态下 designated child 消失，不要把 `list_agents` 隐藏当作永久丢失：
 
-```text
-FAIL CLOSED
-```
-
-不自动创建 replacement。
+- 先对同一 canonical target 发送 recovery probe；
+- `SINGLE_LUNA_REATTACHED` 时继续复用；
+- 明确 not-found 且此前存在时返回 `SINGLE_LUNA_SESSION_STALE`；
+- ambiguous error 时 fail closed，不自动创建 replacement。
 
 ## Parent Final Acceptance
 
@@ -413,7 +446,7 @@ Parent 再次验收
 4. 报告：
 
 ```text
-SESSION COMPLETE
+SESSION_COMPLETE（SESSION COMPLETE）
 ```
 
 5. 新建 Codex session 获得 clean `DISABLED`
@@ -430,13 +463,14 @@ $single-luna-orchestrator
 
 ## Smoke Tests
 
-仓库包含 5 个真实工作流 smoke tests：
+仓库包含 6 个真实工作流 smoke tests：
 
 1. [`01-plan-mode.md`](tests/01-plan-mode.md)
 2. [`02-persistent-reuse.md`](tests/02-persistent-reuse.md)
 3. [`03-reasoning-boundary.md`](tests/03-reasoning-boundary.md)
 4. [`04-normal-mode.md`](tests/04-normal-mode.md)
 5. [`05-session-bound-exit.md`](tests/05-session-bound-exit.md)
+6. [`06-retained-target-recovery.md`](tests/06-retained-target-recovery.md)
 
 静态验证：
 

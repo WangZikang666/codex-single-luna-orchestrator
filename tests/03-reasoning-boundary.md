@@ -1,5 +1,7 @@
 # Smoke Test 03 — Reasoning Boundary
 
+Release behavior: v1.1.0.
+
 Continue the SAME ACTIVE session.
 
 Ask the parent to send this unresolved request to the existing Luna:
@@ -50,6 +52,7 @@ decision_maker=parent
 ## PASS
 
 - No new `spawn_agent`.
+- If the designated target was hidden, recovery was attempted before the resolved follow-up.
 - Luna returned `BLOCKED_REASONING`.
 - Luna did not choose before parent decision.
 - No final file existed before parent decision.

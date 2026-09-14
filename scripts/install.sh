@@ -67,7 +67,7 @@ if [[ "$UNINSTALL" -eq 1 ]]; then
   exit 0
 fi
 
-echo "=== Single-Luna Orchestrator v1.0.0 installer ==="
+echo "=== Single-Luna Orchestrator v1.1.0 installer ==="
 echo "Codex home: $CODEX_HOME"
 echo "Strict single-child config: $STRICT"
 echo "hooks.json will not be read, written, or modified."
@@ -76,11 +76,11 @@ echo
 mkdir -p "$CODEX_HOME/skills"
 
 if [[ -f "$AGENTS_TARGET" ]]; then
-  cp "$AGENTS_TARGET" "$AGENTS_TARGET.before-single-luna-v1.0.0-$STAMP.bak"
+  cp "$AGENTS_TARGET" "$AGENTS_TARGET.before-single-luna-v1.1.0-$STAMP.bak"
 fi
 
 if [[ -d "$SKILL_TARGET" ]]; then
-  cp -R "$SKILL_TARGET" "$SKILL_TARGET.before-single-luna-v1.0.0-$STAMP"
+  cp -R "$SKILL_TARGET" "$SKILL_TARGET.before-single-luna-v1.1.0-$STAMP"
   rm -rf "$SKILL_TARGET"
 fi
 
@@ -114,7 +114,7 @@ echo "[OK] Managed AGENTS block merged: $AGENTS_TARGET"
 
 if [[ "$STRICT" -eq 1 ]]; then
   if [[ -f "$CONFIG_TARGET" ]]; then
-    cp "$CONFIG_TARGET" "$CONFIG_TARGET.before-single-luna-v1.0.0-$STAMP.bak"
+    cp "$CONFIG_TARGET" "$CONFIG_TARGET.before-single-luna-v1.1.0-$STAMP.bak"
   fi
 
   python3 - "$CONFIG_TARGET" <<'PY'

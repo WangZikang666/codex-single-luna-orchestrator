@@ -8,7 +8,7 @@
 
 > **Language:** English | [简体中文](README.zh-CN.md)
 
-**Single-Luna Orchestrator v1.0.0** is an explicit-only Codex skill that keeps planning,
+**Single-Luna Orchestrator v1.1.0** is an explicit-only Codex skill that keeps planning,
 difficult reasoning, decisions, and final acceptance in the current parent model while
 delegating implementation to exactly **one reusable GPT-5.6 Luna / Max native child**.
 
@@ -38,7 +38,7 @@ one parent thinker + one persistent executor
 
 ## Tested behavior
 
-| Capability | v1.0.0 |
+| Capability | v1.1.0 |
 | --- | --- |
 | Explicit-only activation | ✅ |
 | Plan Mode: zero child before approval | ✅ |
@@ -48,6 +48,9 @@ one parent thinker + one persistent executor
 | `fork_turns = "none"` | ✅ |
 | `BLOCKED_REASONING` handoff | ✅ |
 | Parent final acceptance | ✅ |
+| Retained-target recovery after hidden `list_agents` result | ✅ |
+| Fresh-lifecycle guard before initial spawn | ✅ |
+| Ambiguous recovery failure: no spawn/replacement | ✅ |
 | Additional child fan-out | prevented by policy |
 | Hooks / MCP bridge | not used |
 | Session-bound completion | ✅ |
@@ -85,6 +88,11 @@ The child is created once and then reused with `followup_task`.
 - No explorer, planner, tester, verifier, auditor, reviewer, fixer, or nested child.
 - Parent owns all meaningful reasoning and final acceptance.
 - Luna is execution-only and returns `STATUS: BLOCKED_REASONING` when a decision is required.
+- `list_agents` visibility is observational, not authoritative; a hidden canonical target is
+  recovery-probed before any spawn decision.
+- Successful recovery returns `STATUS: SINGLE_LUNA_REATTACHED` and reuses the same target.
+- Definitive not-found after prior existence returns `STATUS: SINGLE_LUNA_SESSION_STALE`; an
+  ambiguous recovery failure fails closed with no spawn or replacement.
 - Hookless: no SessionStart/UserPromptSubmit/SubagentStart hooks.
 - No MCP bridge or app-server sidecar.
 - Session-bound after ACTIVE begins.
@@ -221,9 +229,18 @@ ARMED
    |
    | Plan approved
    v
-ACTIVE
+   ACTIVE_VISIBLE
    |
-   | spawn /root/single_luna_executor exactly once
+   | visible: followup_task to same child
+   | hidden: recovery probe to same canonical target
+   v
+   ACTIVE_HIDDEN
+   |\
+   | \ recovery success -> ACTIVE_USABLE -> followup_task to same child
+   | \
+   |  definitive not-found -> fresh-lifecycle guard -> initial spawn once
+   |   \
+   |    ambiguous or stale -> fail closed / new session
    |
    | followup_task -> same child
    | followup_task -> same child
@@ -248,6 +265,26 @@ Implement this task. Resolve any ambiguity in the parent before delegating execu
 
 There is no formal Plan approval step, but the parent still owns requirements, design,
 reasoning, and final review.
+
+## Retained-target recovery
+
+`list_agents` is a visibility view, not proof that the designated target was destroyed. Before
+every implementation-capable delegation, call it first. If
+`/root/single_luna_executor` is hidden, send the same target a no-op `RECOVERY_PROBE` with
+`followup_task` before considering any spawn.
+
+The outcomes are deterministic:
+
+| Recovery outcome | Action |
+| --- | --- |
+| `STATUS: SINGLE_LUNA_REATTACHED` | Reuse the same target with `followup_task`, even if it remains hidden. |
+| Definitive target/thread/path not found after prior existence | Report `STATUS: SINGLE_LUNA_SESSION_STALE`; do not replace; start a new session. |
+| Definitive not-found in a demonstrably fresh lifecycle | The only initial spawn may proceed after explicit invocation and authorization. |
+| Timeout, transport failure, missing completion, or other ambiguous error | Fail closed: no spawn, no replacement, retry later or start a new session. |
+
+Freshness must be demonstrated by the parent: explicit invocation, authorized implementation,
+no visible child, definitive recovery not-found, and no evidence of an earlier child in the
+current session. If freshness is uncertain, do not guess or spawn.
 
 ## Reasoning boundary
 
@@ -292,7 +329,7 @@ When the task is complete:
 - if it does not exist, do not fake a close;
 - do not use `interrupt_agent` as a close substitute;
 - do not spawn a replacement;
-- report `SESSION COMPLETE`;
+- report `SESSION_COMPLETE` (SESSION COMPLETE);
 - start a new Codex session for a clean `DISABLED` state.
 
 ## Explicit invocation note
@@ -315,6 +352,7 @@ Manual runtime smoke tests live under [`tests/`](tests/):
 3. `03-reasoning-boundary.md`
 4. `04-normal-mode.md`
 5. `05-session-bound-exit.md`
+6. `06-retained-target-recovery.md`
 
 Static repository validation:
 
@@ -367,6 +405,7 @@ Single-Luna keys manually.
 │   ├── ARCHITECTURE.md
 │   ├── COMPATIBILITY.md
 │   ├── TROUBLESHOOTING.md
+│   ├── RELEASE_NOTES_v1.1.0.md
 │   └── RELEASE_NOTES_v1.0.0.md
 ├── scripts/
 │   ├── install.ps1
@@ -401,6 +440,9 @@ Single-Luna keys manually.
 - Plan 阶段不创建 Luna；
 - 真正执行时只创建一个 `/root/single_luna_executor`；
 - 后续全部 `followup_task` 复用同一个 Luna；
+- `list_agents` 只是可见性观察；隐藏时先对同一 canonical target 发送 recovery probe；
+- 成功返回 `SINGLE_LUNA_REATTACHED`，既有 child 不可达时返回 `SINGLE_LUNA_SESSION_STALE`；
+- ambiguous recovery 失败时 fail closed，不 spawn、不创建 replacement；
 - 父代负责需求、架构、推理、决策和最终验收；
 - Luna 只负责执行，遇到需要判断的问题返回 `BLOCKED_REASONING`；
 - 不使用 hooks，不使用 MCP bridge；

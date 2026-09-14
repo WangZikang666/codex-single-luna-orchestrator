@@ -23,6 +23,7 @@ REQUIRED = [
     "docs/ARCHITECTURE.md",
     "docs/COMPATIBILITY.md",
     "docs/TROUBLESHOOTING.md",
+    "docs/RELEASE_NOTES_v1.1.0.md",
     "docs/RELEASE_NOTES_v1.0.0.md",
     "scripts/github-setup.ps1",
     ".github/CODEOWNERS",
@@ -43,6 +44,7 @@ REQUIRED = [
     "tests/03-reasoning-boundary.md",
     "tests/04-normal-mode.md",
     "tests/05-session-bound-exit.md",
+    "tests/06-retained-target-recovery.md",
     ".github/workflows/validate.yml",
 ]
 
@@ -128,19 +130,140 @@ skill_requirements = [
 for required in skill_requirements:
     if required not in skill:
         fail(f"SKILL.md missing core rule: {required}")
+for required in [
+    "explicitly invokes",
+    "Do not silently activate",
+    "GPT-5.6 Luna / Max",
+    'model = "gpt-5.6-luna"',
+    'reasoning_effort = "max"',
+]:
+    if required not in skill:
+        fail(f"SKILL.md missing explicit-only/model rule: {required}")
 ok("skill lifecycle checks passed")
+
+CURRENT_VERSION = "1.1.0"
+
+version_files = {
+    "skills/single-luna-orchestrator/SKILL.md": r"# Single-Luna Orchestrator v1\.1\.0",
+    "integration/AGENTS.snippet.md": r"Single-Luna Orchestrator v1\.1\.0",
+    "README.md": r"Single-Luna Orchestrator v1\.1\.0",
+    "README.zh-CN.md": r"Single-Luna Orchestrator v1\.1\.0",
+    "CHANGELOG.md": r"## \[1\.1\.0\]",
+    "docs/RELEASE_NOTES_v1.1.0.md": r"# Single-Luna Orchestrator v1\.1\.0",
+    "scripts/install.ps1": r"single-luna-v1\.1\.0",
+    "scripts/install.sh": r"single-luna-v1\.1\.0",
+    "scripts/github-setup.ps1": r"release create v1\.1\.0",
+}
+for rel, pattern in version_files.items():
+    text = (ROOT / rel).read_text(encoding="utf-8")
+    if not re.search(pattern, text, re.I):
+        fail(f"v{CURRENT_VERSION} marker missing from {rel}")
+
+historical_notes = ROOT / "docs/RELEASE_NOTES_v1.0.0.md"
+if "# Single-Luna Orchestrator v1.0.0" not in historical_notes.read_text(encoding="utf-8"):
+    fail("historical v1.0.0 release notes were not retained")
+
+current_files = [
+    "skills/single-luna-orchestrator/SKILL.md",
+    "integration/AGENTS.snippet.md",
+    "docs/ARCHITECTURE.md",
+    "docs/COMPATIBILITY.md",
+    "docs/TROUBLESHOOTING.md",
+    "docs/RELEASE_NOTES_v1.1.0.md",
+    "scripts/install.ps1",
+    "scripts/install.sh",
+    "scripts/github-setup.ps1",
+]
+for rel in current_files:
+    text = (ROOT / rel).read_text(encoding="utf-8")
+    if "v1.0.0" in text:
+        fail(f"stale v1.0.0 current-version claim in {rel}")
+ok("v1.1.0 release markers and historical notes checks passed")
+
+security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+if not re.search(r"(?m)^\|\s*1\.1\.x\s*\|\s*Yes\s*\|\s*$", security):
+    fail("SECURITY.md must mark 1.1.x as supported")
+if re.search(r"(?m)^\|\s*1\.0\.x\s*\|\s*Yes\s*\|\s*$", security):
+    fail("SECURITY.md still marks unsupported 1.0.x as supported")
+if not re.search(r"(?m)^\|\s*1\.0\.x\s*\|\s*No\s*\|\s*$", security):
+    fail("SECURITY.md must mark 1.0.x as unsupported")
+ok("security support-version checks passed")
+
+recovery_requirements = [
+    "ACTIVE_VISIBLE",
+    "ACTIVE_HIDDEN",
+    "ACTIVE_USABLE",
+    "RECOVERY_PROBE",
+    "STATUS: SINGLE_LUNA_REATTACHED",
+    "STATUS: SINGLE_LUNA_SESSION_STALE",
+    "list_agents` visibility is observational, not authoritative",
+    "definitive",
+    "ambiguous",
+    "fail closed",
+    "fresh lifecycle",
+    "no replacement",
+]
+for required in recovery_requirements:
+    if required not in skill:
+        fail(f"SKILL.md missing retained-target recovery rule: {required}")
+
+for required in [
+    "ACTIVE_VISIBLE",
+    "ACTIVE_HIDDEN",
+    "ACTIVE_USABLE",
+    "RECOVERY_PROBE",
+    "STATUS: SINGLE_LUNA_REATTACHED",
+    "STATUS: SINGLE_LUNA_SESSION_STALE",
+    "freshness",
+    "ambiguous recovery",
+    "SESSION_COMPLETE",
+]:
+    if required not in agents:
+        fail(f"AGENTS snippet missing recovery rule: {required}")
+
+fresh_guard_fragments = [
+    r"user explicitly\s+invoked",
+    r"implementation is authorized",
+    r"no child is visible",
+    r"recovery probe\s+definitively found no canonical target",
+    r"no evidence that a child was spawned\s+earlier",
+]
+for pattern in fresh_guard_fragments:
+    if not re.search(pattern, skill, re.I):
+        fail(f"SKILL.md missing fresh-lifecycle guard: {pattern}")
+
+if "followup_task" not in skill[skill.find("## Activation and retained-target recovery"):skill.find("## Initial spawn requirements")]:
+    fail("recovery procedure must use followup_task before initial spawn")
+ok("retained-target recovery and fresh-lifecycle guard checks passed")
 
 config = (ROOT / "integration/config.example.toml").read_text(encoding="utf-8")
 for required in [
     "[features]",
     "multi_agent = true",
     "[agents]",
+    "enabled = true",
     "max_concurrent_threads_per_session = 1",
     'default_subagent_model = "gpt-5.6-luna"',
     'default_subagent_reasoning_effort = "max"',
 ]:
     if required not in config:
         fail(f"config example missing: {required}")
+
+allowed_config_keys = {
+    "multi_agent",
+    "enabled",
+    "max_concurrent_threads_per_session",
+    "default_subagent_model",
+    "default_subagent_reasoning_effort",
+}
+for line in config.splitlines():
+    stripped = line.split("#", 1)[0].strip()
+    match = re.match(r"^([A-Za-z0-9_]+)\s*=", stripped)
+    if match and match.group(1) not in allowed_config_keys:
+        fail(f"unexpected config key in public example: {match.group(1)}")
+for forbidden in ["[plugins", "[mcp_servers", "[projects", "notify =", "AppData"]:
+    if forbidden in config:
+        fail(f"private config fragment found in public example: {forbidden}")
 ok("config example checks passed")
 
 all_text = []
@@ -165,11 +288,23 @@ for path, text in all_text:
         (r"(?i)\b[A-Z0-9._%+-]+@(gmail|outlook|qq|163|126)\.[A-Z]{2,}\b", "personal email"),
         (r"\[projects\.", "Codex project trust entry"),
         (r"mcp_servers\.single_luna_bridge", "legacy private MCP bridge config"),
+        (r"(?im)^\s*notify\s*=", "private notification command"),
+        (r"(?im)^\s*\[plugins\.", "private plugin configuration"),
+        (r"(?i)\\AppData\\", "local runtime path"),
     ]
     for rx, label in checks:
         if re.search(rx, text):
             fail(f"{label} found in public file: {path.relative_to(ROOT)}")
 ok("privacy/legacy guards passed")
+
+# The public policy may mention forbidden replacement names as examples, but executable
+# scripts must not manufacture alternate designated-child targets.
+for path, text in all_text:
+    if path.suffix not in {".ps1", ".sh", ".py"}:
+        continue
+    if re.search(r"single_luna_executor_(?:2|recovery|new)", text, re.I):
+        fail(f"replacement child target found in executable file: {path.relative_to(ROOT)}")
+ok("no-replacement executable guard passed")
 
 # Ensure public code does not modify hooks.json.
 for path, text in all_text:
